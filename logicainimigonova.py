@@ -44,14 +44,15 @@ estado_jogo = "JOGANDO"  # Estados: "JOGANDO", "VITORIA", "GAMEOVER"
 estado_guarda = "PATRULHA" # Estados do Guarda: "PATRULHA", "PERSEGUICAO"
 
 def reiniciar_jogo():
-    global tem_chave, estado_jogo, estado_guarda, indice_rota
-    tem_chave = False
+    global estado_jogo, estado_guarda, indice_rota
+    #tem_chave,
+    #tem_chave = False
     estado_jogo = "JOGANDO"
     estado_guarda = "PATRULHA"
     indice_rota = 0
     heroi.pos = (100, 500)
     guarda.pos = (400, 100)
-    chave.pos = (700, 100)
+    #chave.pos = (700, 100)
 
 def atualizar_ia_guarda():
     global estado_guarda, indice_rota, estado_jogo
