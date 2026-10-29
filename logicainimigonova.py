@@ -81,11 +81,11 @@ def atualizar_ia_guarda():
         # Segue a lista de Waypoints
         alvo_x, alvo_y = rota_patrulha[indice_rota]
 
-        if guarda.x < alvo_x: guarda.x += VELOCIDADE_GUARDA_PATRULHA
-        elif guarda.x > alvo_x: guarda.x -= VELOCIDADE_GUARDA_PATRULHA
+        if guarda.x < alvo_x: guarda.x += 10
+        elif guarda.x > alvo_x: guarda.x -= 10
 
-        if guarda.y < alvo_y: guarda.y += VELOCIDADE_GUARDA_PATRULHA
-        elif guarda.y > alvo_y: guarda.y -= VELOCIDADE_GUARDA_PATRULHA
+        if guarda.y < alvo_y: guarda.y += 10
+        elif guarda.y > alvo_y: guarda.y -= 10
 
         # Quando chega próximo do ponto atual da rota, vai para o próximo
         if abs(guarda.x - alvo_x) < 5 and abs(guarda.y - alvo_y) < 5:
