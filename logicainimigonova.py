@@ -71,6 +71,7 @@ def atualizar_ia_guarda():
     # 3. Execução dos Comportamentos
     if estado_guarda == "PERSEGUICAO":
         # Persegue o jogador
+        sound.play("coletar")
         if guarda.x < heroi.x: guarda.x += VELOCIDADE_GUARDA_PERSEGUICAO
         elif guarda.x > heroi.x: guarda.x -= VELOCIDADE_GUARDA_PERSEGUICAO
         
