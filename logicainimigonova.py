@@ -1,6 +1,7 @@
 import pygame
 import pgzrun
 import random
+import math
 
 WIDTH = 800
 HEIGHT = 600
@@ -31,8 +32,8 @@ redimensionar(porta, 60)
 # --- Variáveis de Estado e Mecânicas de Escapada ---
 VELOCIDADE_HEROI = 3
 VELOCIDADE_GUARDA_PATRULHA = 1.5
-VELOCIDADE_GUARDA_PERSEGUICAO = 1.5
-RAIO_DE_VISAO_QD = 180 ** 2  # Distância ao quadrado (180px) para otimização
+VELOCIDADE_GUARDA_PERSEGUICAO = 2.0
+RAIO_DE_VISAO_QD = 180 ** 2  # Distância ao quadrado (180px)
 
 # Rota de Patrulha do Guarda (Waypoints)
 rota_patrulha = [(100, 100), (600, 100)]
@@ -44,65 +45,70 @@ estado_jogo = "JOGANDO"  # Estados: "JOGANDO", "VITORIA", "GAMEOVER"
 estado_guarda = "PATRULHA" # Estados do Guarda: "PATRULHA", "PERSEGUICAO"
 
 def reiniciar_jogo():
-    global estado_jogo, estado_guarda, indice_rota
-    #tem_chave,
-    #tem_chave = False
+    global estado_jogo, estado_guarda, indice_rota, tem_chave
+    tem_chave = False
     estado_jogo = "JOGANDO"
     estado_guarda = "PATRULHA"
     indice_rota = 0
     heroi.pos = (100, 500)
     guarda.pos = (400, 100)
-    #chave.pos = (700, 100)
 
 def atualizar_ia_guarda():
     global estado_guarda, indice_rota, estado_jogo
 
-    # 1. Calculando Distância ao Quadrado até o Herói (Teoria da Aula)
-    dx = heroi.x - guarda.x
-    dy = heroi.y - guarda.y
-    distancia_qd = dx**2 + dy**2
-
-    # 2. Transição de Estados da FSM do Guarda
-    if distancia_qd <= RAIO_DE_VISAO_QD:
-        estado_guarda = "PERSEGUICAO"
-    else:
-        estado_guarda = "PATRULHA"
-
-    # 3. Execução dos Comportamentos
+    # 1. Define o alvo com base no estado atual
     if estado_guarda == "PERSEGUICAO":
-        # Persegue o jogador
-        sound.play("coletar")
-        if guarda.x < heroi.x: guarda.x += VELOCIDADE_GUARDA_PERSEGUICAO
-        elif guarda.x > heroi.x: guarda.x -= VELOCIDADE_GUARDA_PERSEGUICAO
-        
-        if guarda.y < heroi.y: guarda.y += VELOCIDADE_GUARDA_PERSEGUICAO
-        elif guarda.y > heroi.y: guarda.y -= VELOCIDADE_GUARDA_PERSEGUICAO
-
-    elif estado_guarda == "PATRULHA":
-        # Segue a lista de Waypoints
+        alvo_x, alvo_y = heroi.x, heroi.y
+    else:
         alvo_x, alvo_y = rota_patrulha[indice_rota]
 
-        if guarda.x < alvo_x: guarda.x += 10
-        elif guarda.x > alvo_x: guarda.x -= 10
+    # 2. Movimentação e cálculo de direção (para a lanterna/cone)
+    dx = alvo_x - guarda.x
+    dy = alvo_y - guarda.y
+    dist = math.hypot(dx, dy)
 
-        if guarda.y < alvo_y: guarda.y += 10
-        elif guarda.y > alvo_y: guarda.y -= 10
+    vel = VELOCIDADE_GUARDA_PERSEGUICAO if estado_guarda == "PERSEGUICAO" else VELOCIDADE_GUARDA_PATRULHA
 
-        # Quando chega próximo do ponto atual da rota, vai para o próximo
-        if abs(guarda.x - alvo_x) < 5 and abs(guarda.y - alvo_y) < 5:
-            indice_rota = (indice_rota + 1) % len(rota_patrulha)
+    if dist > 1:
+        guarda.x += (dx / dist) * vel
+        guarda.y += (dy / dist) * vel
+        # Guarda o ângulo para desenhar o cone de visão na direção correta
+        guarda.angulo_visao = math.atan2(dy, dx)
+
+    # 3. Transição de Estados baseada em Distância e Ângulo (Cone de Visão)
+    dist_heroi_qd = (heroi.x - guarda.x)**2 + (heroi.y - guarda.y)**2
+    
+    if dist_heroi_qd <= RAIO_DE_VISAO_QD:
+        # Verifica se o herói está dentro do ângulo frontal de visão (cone de ~90 graus)
+        angulo_para_heroi = math.atan2(heroi.y - guarda.y, heroi.x - guarda.x)
+        diff_angulo = (angulo_para_heroi - getattr(guarda, 'angulo_visao', 0) + math.pi) % (2 * math.pi) - math.pi
+        
+        # Se estiver na frente do guarda (dentro de 45 graus para cada lado)
+        if abs(diff_angulo) < math.radians(45):
+            estado_guarda = "PERSEGUICAO"
+    else:
+        if estado_guarda == "PERSEGUICAO" and dist_heroi_qd > RAIO_DE_VISAO_QD * 1.5:
+            estado_guarda = "PATRULHA"
+
+    # 4. Troca de Waypoint na Patrulha
+    if estado_guarda == "PATRULHA" and dist < 10:
+        indice_rota = (indice_rota + 1) % len(rota_patrulha)
 
 def draw():
     screen.fill((15, 20, 30))
 
     if estado_jogo == "JOGANDO":
-        # Desenha o Raio/Cone de Visão do Guarda (Círculo Transparente/Visual)
+        # Desenha o facho de luz cônico do guarda usando pygame.draw.polygon
+        angulo = getattr(guarda, 'angulo_visao', 0)
+        abertura = math.radians(45)
+        raio_luz = 180
         
-        if estado_guarda == "PERSEGUICAO":
-            cor_visao = (255, 50, 50) 
-        else: 
-            (100, 100, 255)
-        screen.draw.circle(guarda.pos, 180, cor_visao)
+        p1 = guarda.pos
+        p2 = (p1[0] + math.cos(angulo - abertura) * raio_luz, p1[1] + math.sin(angulo - abertura) * raio_luz)
+        p3 = (p1[0] + math.cos(angulo + abertura) * raio_luz, p1[1] + math.sin(angulo + abertura) * raio_luz)
+        
+        cor_cone = (255, 60, 60) if estado_guarda == "PERSEGUICAO" else (100, 150, 255)
+        pygame.draw.polygon(screen.surface, cor_cone, [p1, p2, p3])
 
         # Desenha os Elementos
         porta.draw()
@@ -112,20 +118,11 @@ def draw():
         guarda.draw()
 
         # HUD / Interface de Fuga
-        
-        if tem_chave: 
-        status_chave = "POSSUI CHAVE" 
-        else 
-        status_chave = "PROCURE A CHAVE!"
+        status_chave = "POSSUI CHAVE" if tem_chave else "PROCURE A CHAVE!"
         cor_chave = "gold" if tem_chave else "orange"
         screen.draw.text(f"Objetivo: Escapar pela Porta | Chave: {status_chave}", topleft=(20, 20), fontsize=26, color=cor_chave, shadow=(1, 1), scolor="black")
         
-         
-        if estado_guarda == "PERSEGUICAO":
-            status_alerta = "ALERTA: GUARDA TE VIU!" 
-        else 
-            status_alerta = "Status: Oculto"
-        
+        status_alerta = "ALERTA: GUARDA TE VIU!" if estado_guarda == "PERSEGUICAO" else "Status: Oculto nas Sombras"
         screen.draw.text(status_alerta, midbottom=(WIDTH // 2, HEIGHT - 15), fontsize=22, color="crimson" if estado_guarda == "PERSEGUICAO" else "lime")
 
     elif estado_jogo == "VITORIA":
